@@ -10,9 +10,20 @@ import (
     "html/template"
 
     "net/http"
-    "appengine/urlfetch"
-    "io/ioutil"
+    "time"
+    "appengine/datastore"
+    "appengine/user"
+    "fmt"
 )
+
+type UserInfo struct {
+        UserID  string
+        Email string
+        DisplayName string
+        LastAccessToken string
+        LastAuthenticationTime time.Time
+        FirstAuthenticationTime time.Time
+}
 
 var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
 
@@ -20,9 +31,12 @@ var conf = &oauth2.Config{
     ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
     ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
     RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    // RedirectURL:  "http://localhost:8080/oauth2callback",
     Scopes: []string{
+        "https://www.googleapis.com/auth/userinfo.email",
         "https://picasaweb.google.com/data",
         "profile",
+        "email",
     },
     Endpoint: google.Endpoint,
 }
@@ -31,13 +45,33 @@ func init() {
     http.HandleFunc("/", handleRoot)
     http.HandleFunc("/authorize", handleAuthorize)
     http.HandleFunc("/oauth2callback", handleOAuth2Callback)
+
+    http.HandleFunc("/photos", handleGetPhotos)
+}
+
+func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
+  cookie, err := r.Cookie("accessToken")
+  if err != nil {
+    http.Error(w, "accessToken cookie not found", http.StatusUnauthorized)
+    return
+  }
+
+  fmt.Fprintf(w, `Welcome, %s!`, cookie.Value)
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-    err := cached_templates.ExecuteTemplate(w, "notAuthenticated.html", nil)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusNotFound)
-    }
+  c := oldappengine.NewContext(r)
+  u, err := user.CurrentOAuth(c, "")
+  if err != nil {
+      http.Error(w, "OAuth Authorization header required", http.StatusUnauthorized)
+      return
+  }
+  if u == nil {
+      fmt.Fprintf(w, `You are not logged in yet, please <a href='/authorize'>Login</a>`, u)
+      return
+  }
+
+  fmt.Fprintf(w, `Welcome, %s!`, u)
 }
 
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -64,22 +98,48 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         log.Errorf(c, "Person Error: %v", err)
     }
-    log.Infof(c, "Name: %v", person.DisplayName)
 
-    log.Infof(c, "Access Token: %v", tok.AccessToken);
-
-    var picasaUrl = "https://picasaweb.google.com/data/feed/api/user/113997888652562329648?kind=photo&tag=parentview&access_token=" + tok.AccessToken + "&alt=json"
     oldc := oldappengine.NewContext(r)
-    urlfetchClient := urlfetch.Client(oldc)
-    res, err := urlfetchClient.Get(picasaUrl)
+
+    userEmail := person.Emails[0].Value
+
+    // Try to load the user from the database
+    q := datastore.NewQuery("UserInfo").Filter("Email = ", userEmail)
+    var userInfoResults []UserInfo
+    userInfoKeys, err := q.GetAll(oldc, &userInfoResults)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
+        log.Errorf(c, "Fail to find user by email: %v", err)
     }
-    json, err := ioutil.ReadAll(res.Body)
-  	res.Body.Close()
-  	if err != nil {
-  		log.Errorf(c, "fail to read all body");
-  	}
-    log.Infof(c, "HTTP GET returned %v", json)
+
+    var userInfo UserInfo
+    var userInfoKey *datastore.Key
+    if (len(userInfoResults) > 0) {
+      // Get the user
+      log.Infof(c, "Authorize exist user %v", userInfo)
+      userInfo = userInfoResults[0]
+      userInfoKey = userInfoKeys[0]
+    } else {
+      // Create new UserInfo
+      log.Infof(c, "Authorize new user %v", userInfo)
+      userInfoKey = datastore.NewIncompleteKey(oldc, "UserInfo", nil)
+      userInfo = UserInfo{
+        UserID: person.Id,
+        Email: person.Emails[0].Value,
+        DisplayName: person.DisplayName,
+        FirstAuthenticationTime: time.Now(),
+      }
+    }
+
+    userInfo.LastAuthenticationTime = time.Now()
+    userInfo.LastAccessToken = tok.AccessToken
+
+    _, err = datastore.Put(oldc, userInfoKey, &userInfo)
+    if err != nil {
+        log.Errorf(c, "Fail to update user: %v", err)
+    }
+
+    cookie := &http.Cookie{Name:"accessToken", Value:tok.AccessToken, Expires:time.Now().Add(356*24*time.Hour), HttpOnly:true}
+    http.SetCookie(w, cookie)
+
+    http.Redirect(w, r, "app/authcomplete.html?accesstoken=" + tok.AccessToken, http.StatusFound)
 }
