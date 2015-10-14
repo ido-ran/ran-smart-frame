@@ -14,15 +14,36 @@ import (
     "appengine/datastore"
     "appengine/user"
     "fmt"
+    "appengine/urlfetch"
+    "io/ioutil"
+    "strings"
+    "encoding/json"
+
+    "ido-ran/picasa"
 )
 
 type UserInfo struct {
         UserID  string
         Email string
         DisplayName string
-        LastAccessToken string
-        LastAuthenticationTime time.Time
+        GoogleAccessToken string
+        LastGoogleAuthenticationTime time.Time
         FirstAuthenticationTime time.Time
+}
+
+type FollowUser struct {
+        UserInfoKey datastore.Key
+        UserID string
+        Email string
+}
+
+type MediaResponse struct {
+  Media []MediaInfo
+}
+
+type MediaInfo struct {
+  Type string
+  URL string
 }
 
 var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
@@ -50,20 +71,80 @@ func init() {
 }
 
 func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
-  cookie, err := r.Cookie("accessToken")
+  c := appengine.NewContext(r)
+  oldc := oldappengine.NewContext(r)
+
+  u, err := user.CurrentOAuth(oldc, "https://picasaweb.google.com/data")
   if err != nil {
-    http.Error(w, "accessToken cookie not found", http.StatusUnauthorized)
+      http.Error(w, "OAuth Authorization header required " + err.Error(), http.StatusUnauthorized)
+      return
+  }
+  if u == nil {
+      fmt.Fprintf(w, `You are not logged in yet, please <a href='/authorize'>Login</a>`, u)
+      return
+  }
+
+  authHeader := r.Header.Get("Authorization")
+  if !strings.HasPrefix(authHeader, "Bearer") {
+    http.Error(w, "Authentication header with bearer not found", http.StatusUnauthorized)
     return
   }
 
-  fmt.Fprintf(w, `Welcome, %s!`, cookie.Value)
+  AccessToken := strings.Split(authHeader, " ")[1] // Take the token
+
+  var picasaUrl = "https://picasaweb.google.com/data/feed/api/user/113997888652562329648?kind=photo&tag=parentview&access_token=" + AccessToken + "&alt=json"
+  urlfetchClient := urlfetch.Client(oldc)
+  res, err := urlfetchClient.Get(picasaUrl)
+  if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+  }
+  jsonBuffer, err := ioutil.ReadAll(res.Body)
+  res.Body.Close()
+  if err != nil {
+    http.Error(w, "Fail to get Picasa data", http.StatusInternalServerError)
+  }
+
+  // Read the Picasa response into struct for easy parsing
+  var picasaRes picasa.PicasaResponse
+  err = json.Unmarshal(jsonBuffer, &picasaRes)
+
+  var mediaResp MediaResponse
+
+  if err != nil {
+    log.Errorf(c, "Prase Picasa response Error: %v", err)
+    http.Error(w, "Fail to parse Picasa data", http.StatusInternalServerError)
+  } else {
+    for _,entry := range picasaRes.Feed.Entry {
+      if entry.OriginalVideo.Type != "" {
+        //fmt.Printf("video %s\n\n", entry.Title.T)
+        // For now we ignore videos
+      } else {
+        for _,media := range entry.MediaGroup.MediaContent {
+          mediaResp.Media = append(mediaResp.Media, MediaInfo{"photo", media.URL})
+          fmt.Printf("picture %s %s\n\n", media.Type, media.URL)
+
+          // Break in case there is more than one media group for this photo
+          break;
+        }
+      }
+    }
+  }
+
+  b, err := json.Marshal(mediaResp)
+  s := string(b)
+  fmt.Fprintf(w, `%s`, s)
+}
+
+func handleFollowUser(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
   c := oldappengine.NewContext(r)
-  u, err := user.CurrentOAuth(c, "")
+  u, err := user.CurrentOAuth(c, "https://picasaweb.google.com/data")
   if err != nil {
-      http.Error(w, "OAuth Authorization header required", http.StatusUnauthorized)
+      http.Error(w, "OAuth Authorization header required " + err.Error(), http.StatusUnauthorized)
       return
   }
   if u == nil {
@@ -130,8 +211,8 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
       }
     }
 
-    userInfo.LastAuthenticationTime = time.Now()
-    userInfo.LastAccessToken = tok.AccessToken
+    userInfo.LastGoogleAuthenticationTime = time.Now()
+    userInfo.GoogleAccessToken = tok.AccessToken
 
     _, err = datastore.Put(oldc, userInfoKey, &userInfo)
     if err != nil {
