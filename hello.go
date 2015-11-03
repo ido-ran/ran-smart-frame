@@ -113,7 +113,7 @@ func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
 
   if err != nil {
     log.Errorf(c, "Prase Picasa response Error: %v", err)
-    http.Error(w, "Fail to parse Picasa data", http.StatusInternalServerError)
+    http.Error(w, "Fail to parse Picasa data", http.StatusUnauthorized)
   } else {
     for _,entry := range picasaRes.Feed.Entry {
       if entry.OriginalVideo.Type != "" {
