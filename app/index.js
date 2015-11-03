@@ -82,7 +82,7 @@ function showNextPhoto() {
   }
 
   imgElement.src = dataSource.Media[currMediaIndex].URL;
-  setTimeout(showNextPhoto, 5000);
+  setTimeout(showNextPhoto, 30 * 1000);
 }
 
 function checkMediaFreshness() {
@@ -90,7 +90,7 @@ function checkMediaFreshness() {
   var diffMs = (now - lastUpdateAt);
   var diffMin = diffMs / 1000 / 60;
 
-  if (diffMin > 0.5) {
+  if (diffMin > 5) {
     loadMedia();
     return true;
   }
