@@ -32,7 +32,6 @@ type UserInfo struct {
 }
 
 type FollowUser struct {
-        UserInfoKey datastore.Key
         UserID string
         Email string
 }
@@ -51,8 +50,8 @@ var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
 var conf = &oauth2.Config{
     ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
     ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
-    RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
-    // RedirectURL:  "http://localhost:8080/oauth2callback",
+    // RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    RedirectURL:  "http://localhost:8080/oauth2callback",
     Scopes: []string{
         "https://www.googleapis.com/auth/userinfo.email",
         "https://picasaweb.google.com/data",
@@ -68,6 +67,8 @@ func init() {
     http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 
     http.HandleFunc("/photos", handleGetPhotos)
+
+    http.HandleFunc("/follow", handleFollowUser)
 }
 
 func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +138,47 @@ func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFollowUser(w http.ResponseWriter, r *http.Request) {
+  c := appengine.NewContext(r)
+  oldc := oldappengine.NewContext(r)
 
+  u, err := user.CurrentOAuth(oldc, "https://picasaweb.google.com/data")
+  if err != nil {
+      http.Error(w, "OAuth Authorization header required " + err.Error(), http.StatusUnauthorized)
+      return
+  }
+  if u == nil {
+      fmt.Fprintf(w, `You are not logged in yet, please <a href='/authorize'>Login</a>`, u)
+      return
+  }
+
+  // Try to load the user from the database
+  q := datastore.NewQuery("UserInfo").Filter("Email = ", u.Email)
+  var userInfoResults []UserInfo
+  userInfoKeys, err := q.GetAll(oldc, &userInfoResults)
+  if err != nil {
+      log.Errorf(c, "Fail to find user by email: %v", err)
+  }
+
+  if (len(userInfoResults) == 0) {
+    // Get the user
+    log.Infof(c, "The user was not found by email %v", u.Email)
+  } else {
+    userInfoKey := userInfoKeys[0]
+
+    followUserID := r.FormValue("userid")
+    followUserEmail := r.FormValue("email")
+
+    newFollow := FollowUser {
+      UserID: followUserID,
+      Email: followUserEmail,
+    }
+    followKey := datastore.NewIncompleteKey(oldc, "FollowUser", userInfoKey)
+    _, err = datastore.Put(oldc, followKey, &newFollow)
+    if err != nil {
+        log.Errorf(c, "Fail to create follow: %v", err)
+    }
+
+  }
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
