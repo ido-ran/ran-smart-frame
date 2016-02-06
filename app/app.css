@@ -4,6 +4,10 @@ html {
 }
 
 img {
-   margin: 0px auto;
-   display:block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  width: auto;
+  min-height: 100%;
 }

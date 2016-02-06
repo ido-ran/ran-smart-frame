@@ -50,8 +50,8 @@ var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
 var conf = &oauth2.Config{
     ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
     ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
-    // RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
-    RedirectURL:  "http://localhost:8080/oauth2callback",
+    RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    //RedirectURL:  "http://localhost:8080/oauth2callback",
     Scopes: []string{
         "https://www.googleapis.com/auth/userinfo.email",
         "https://picasaweb.google.com/data",
@@ -93,7 +93,7 @@ func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
 
   AccessToken := strings.Split(authHeader, " ")[1] // Take the token
 
-  var picasaUrl = "https://picasaweb.google.com/data/feed/api/user/113997888652562329648?kind=photo&tag=parentview&access_token=" + AccessToken + "&alt=json"
+  var picasaUrl = "https://picasaweb.google.com/data/feed/api/user/113997888652562329648/albumid/6220969463722583649?alt=json&access_token=" + AccessToken
   urlfetchClient := urlfetch.Client(oldc)
   res, err := urlfetchClient.Get(picasaUrl)
   if err != nil {
