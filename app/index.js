@@ -7,7 +7,13 @@ var STATES = {
   ERROR: 'error'
 };
 
+var CONSTS = {
+  SHOW_PHOTO_DURATION_IN_SECONDS: 20,
+  REFRESH_MEDIA_INTERVAL_IN_MINUTES: 5
+};
+
 var dataSource;
+var mediaToShow;
 var currMediaIndex = -1;
 var imgElement;
 var lastUpdateAt;
@@ -29,36 +35,56 @@ function setState(newState) {
   state = newState;
 }
 
+function setErrorState() {
+  setState(STATES.ERROR);
+  // Try to reload media in 2 min
+  errorCount++;
+
+  // Wait at most 10 minutes for retry
+  var retryDelay = Math.min(10, errorCount) * 60 * 1000;
+  setTimeout(loadMedia, retryDelay);
+}
+
 function loadMedia() {
+
   if (state === STATES.LOADING) return;
 
   var isAlreadyLoaded = (state === STATES.LOADED);
   setState(STATES.LOADING);
 
   var xhr = new XMLHttpRequest();
+  xhr.timeout = 8000; //60 * 1000; // timeout of 1 minute
 
   var url = '/photos';
   xhr.open('GET', url);
   xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+
+
+  xhr.ontimeout = function () {
+    setErrorState();
+  };
+
+  xhr.onerror = function() {
+    setErrorState();
+  }
+
   xhr.onload = function(e) {
     if (this.status === 401) {
       // unauthorized
       location = 'https://ran-smart-frame.appspot.com/authorize';
       return;
     } else if (this.status !== 200) {
-      setState(STATES.ERROR);
-      // Try to reload media in 2 min
-      errorCount++;
-
-      // Wait at most 10 minutes for retry
-      var retryDelay = Math.min(10, errorCount) * 60 * 1000;
-      setTimeout(loadMedia, retryDelay);
+      setErrorState();
       return;
-    }
+    };
 
     errorCount = 0;
     lastUpdateAt = new Date();
     dataSource = JSON.parse(this.response);
+    mediaToShow = dataSource.Media.slice(); // make a copy
+
+    // TODO: we should not suffle if the dataSource is the same as the last one we got to ensure we show all the pictures before suffle again.
+    shuffle(mediaToShow);
 
     setState(STATES.LOADED);
 
@@ -68,7 +94,7 @@ function loadMedia() {
 
       showNextPhoto();
     }
-  }
+  };
 
   xhr.send();
 }
@@ -77,12 +103,12 @@ function showNextPhoto() {
   checkMediaFreshness();
 
   currMediaIndex++;
-  if (currMediaIndex > dataSource.Media.length - 1) {
+  if (currMediaIndex > mediaToShow.length - 1) {
     currMediaIndex = 0;
   }
 
-  imgElement.src = dataSource.Media[currMediaIndex].URL;
-  setTimeout(showNextPhoto, 30 * 1000);
+  imgElement.src = mediaToShow[currMediaIndex].URL;
+  setTimeout(showNextPhoto, CONSTS.SHOW_PHOTO_DURATION_IN_SECONDS * 1000);
 }
 
 function checkMediaFreshness() {
@@ -90,10 +116,29 @@ function checkMediaFreshness() {
   var diffMs = (now - lastUpdateAt);
   var diffMin = diffMs / 1000 / 60;
 
-  if (diffMin > 5) {
+  if (diffMin > CONSTS.REFRESH_MEDIA_INTERVAL_IN_MINUTES) {
     loadMedia();
     return true;
   }
 
   return false;
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
 }
