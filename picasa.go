@@ -1,4 +1,4 @@
-package picasa
+package hello
 
 type PicasaResponse struct {
   Feed PicasaFeed
