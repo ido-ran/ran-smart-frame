@@ -16,6 +16,7 @@ var dataSource;
 var mediaToShow;
 var currMediaIndex = -1;
 var imgElement;
+var ribbonElement;
 var lastUpdateAt;
 var state = STATES.INIT;
 var errorCount = 0;
@@ -27,6 +28,7 @@ window.onload = function() {
   imgContainerElement = document.getElementById("imgcontainer");
   imgElement = document.getElementById('mainimg');
   loadingContainerElement = document.getElementById('loadingcontainer');
+  ribbonElement = document.getElementById('ribbon');
   loadMedia();
 }
 
@@ -108,6 +110,22 @@ function showNextPhoto() {
   }
 
   imgElement.src = mediaToShow[currMediaIndex].URL;
+
+  var timePicTaken = new Date(parseInt(mediaToShow[currMediaIndex].Timestamp));
+  var pointInTime = new Date(2015, 1, 27, 0, 0, 0, 0);
+  var duration = moment.duration(timePicTaken - pointInTime);
+
+  var durationString;
+  if (duration.asYears() < 1.1) {
+    durationString = duration.humanize();
+  } else {
+    durationString = duration.years() + 'y ';
+    if (duration.months() > 0) {
+       durationString += duration.months() + 'm'
+    }
+  }
+  ribbonElement.innerText = durationString;
+
   setTimeout(showNextPhoto, CONSTS.SHOW_PHOTO_DURATION_IN_SECONDS * 1000);
 }
 

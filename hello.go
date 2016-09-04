@@ -41,6 +41,7 @@ type MediaResponse struct {
 type MediaInfo struct {
   Type string
   URL string
+  Timestamp string
 }
 
 var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
@@ -48,8 +49,8 @@ var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
 var conf = &oauth2.Config{
     ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
     ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
-    // RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
-    RedirectURL:  "http://localhost:8080/oauth2callback",
+    RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    // RedirectURL:  "http://localhost:8080/oauth2callback",
     Scopes: []string{
         "https://www.googleapis.com/auth/userinfo.email",
         "https://picasaweb.google.com/data",
@@ -120,7 +121,7 @@ func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
         // For now we ignore videos
       } else {
         for _,media := range entry.MediaGroup.MediaContent {
-          mediaResp.Media = append(mediaResp.Media, MediaInfo{"photo", media.URL})
+          mediaResp.Media = append(mediaResp.Media, MediaInfo{"photo", media.URL, entry.Timestamp.T})
           fmt.Printf("picture %s %s\n\n", media.Type, media.URL)
 
           // Break in case there is more than one media group for this photo

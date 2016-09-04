@@ -13,6 +13,7 @@ type PicasaFeedEntry struct {
   Content PicasaContent
   OriginalVideo PicasaVideoInfo `json:"gphoto$originalvideo"`
   MediaGroup PicasaMediaGroup `json:"media$group"`
+  Timestamp PicasaValue `json:"gphoto$timestamp"`
 }
 
 type PicasaValue struct {
