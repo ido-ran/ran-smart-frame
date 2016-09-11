@@ -1,4 +1,4 @@
-package hello
+package smartframe
 
 import (
     "golang.org/x/oauth2"
@@ -49,8 +49,8 @@ var cached_templates = template.Must(template.ParseGlob("templates/*.html"))
 var conf = &oauth2.Config{
     ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
     ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
-    RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
-    // RedirectURL:  "http://localhost:8080/oauth2callback",
+    //RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    RedirectURL:  "http://localhost:8080/oauth2callback",
     Scopes: []string{
         "https://www.googleapis.com/auth/userinfo.email",
         "https://picasaweb.google.com/data",

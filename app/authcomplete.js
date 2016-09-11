@@ -14,5 +14,5 @@ if (!accessToken) {
   location = '/'
 } else {
   localStorage.setItem("accessToken", accessToken);
-  location = '/app/index.html'
+  location = '/app/frame.html'
 }

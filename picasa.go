@@ -1,4 +1,4 @@
-package hello
+package smartframe
 
 type PicasaResponse struct {
   Feed PicasaFeed
