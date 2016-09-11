@@ -1,3 +1,23 @@
+(function(){
+    var cookies;
+
+    function readCookie(name,c,C,i){
+        if(cookies){ return cookies[name]; }
+
+        c = document.cookie.split('; ');
+        cookies = {};
+
+        for(i=c.length-1; i>=0; i--){
+           C = c[i].split('=');
+           cookies[C[0]] = C[1];
+        }
+
+        return cookies[name];
+    }
+
+    window.readCookie = readCookie; // or expose it however you want
+})();
+
 var accessToken;
 var parts = location.search.substring(1).split('&');
 
@@ -11,8 +31,14 @@ var parts = location.search.substring(1).split('&');
     }
 
 if (!accessToken) {
-  location = '/'
+  location = '/app/auth_fail.html'
 } else {
   localStorage.setItem("accessToken", accessToken);
-  location = '/app/frame.html'
+
+  var initiator = window.readCookie("auth_initiate") || 'console';
+  if (initiator === 'console') {
+    location = '/app/console.html'
+  } else {
+    location = '/app/frame.html'
+  }
 }

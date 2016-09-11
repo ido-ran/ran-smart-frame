@@ -60,13 +60,27 @@ var conf = &oauth2.Config{
     Endpoint: google.Endpoint,
 }
 
+var authConfAdmin = &oauth2.Config{
+    ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
+    ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
+    //RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
+    RedirectURL:  "http://localhost:8080/oauth2callback",
+    Scopes: []string{
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://picasaweb.google.com/data",
+        "profile",
+        "email",
+    },
+    Endpoint: google.Endpoint,
+}
+
 func init() {
     http.HandleFunc("/", handleRoot)
     http.HandleFunc("/authorize", handleAuthorize)
     http.HandleFunc("/oauth2callback", handleOAuth2Callback)
-
     http.HandleFunc("/photos", handleGetPhotos)
 
+    http.HandleFunc("/login", handleConsoleLogin)
     http.HandleFunc("/follow", handleFollowUser)
 }
 
@@ -197,7 +211,19 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
     //c := appengine.NewContext(r)
+    cookie := &http.Cookie{Name:"auth_initiate", Value:"frame", Expires:time.Now().Add(356*24*time.Hour)}
+    http.SetCookie(w, cookie)
+
     url := conf.AuthCodeURL("")
+    http.Redirect(w, r, url, http.StatusFound)
+}
+
+func handleConsoleLogin(w http.ResponseWriter, r *http.Request) {
+    //c := appengine.NewContext(r)
+    cookie := &http.Cookie{Name:"auth_initiate", Value:"console", Expires:time.Now().Add(356*24*time.Hour)}
+    http.SetCookie(w, cookie)
+
+    url := conf.AuthCodeURL("admin")
     http.Redirect(w, r, url, http.StatusFound)
 }
 
@@ -207,6 +233,8 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
     tok, err := conf.Exchange(c, code)
     if err != nil {
         log.Errorf(c, "%v", err)
+        http.Redirect(w, r, "app/authcomplete.html?error", http.StatusFound)
+        return
     }
     client := conf.Client(c, tok)
 
