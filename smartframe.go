@@ -7,6 +7,7 @@ import (
     oldappengine "appengine"
     "google.golang.org/appengine"
     "google.golang.org/appengine/log"
+    newuser "google.golang.org/appengine/user"
     "html/template"
 
     "net/http"
@@ -60,20 +61,6 @@ var conf = &oauth2.Config{
     Endpoint: google.Endpoint,
 }
 
-var authConfAdmin = &oauth2.Config{
-    ClientID:     "53043632999-resi4cfbi53q4q6gplp46g757jnjb87d.apps.googleusercontent.com",       // Replace with correct ClientID
-    ClientSecret: "IMkpURmmDD_7LYEtuuYzfWlH",   // Replace with correct ClientSecret
-    //RedirectURL:  "https://ran-smart-frame.appspot.com/oauth2callback",
-    RedirectURL:  "http://localhost:8080/oauth2callback",
-    Scopes: []string{
-        "https://www.googleapis.com/auth/userinfo.email",
-        "https://picasaweb.google.com/data",
-        "profile",
-        "email",
-    },
-    Endpoint: google.Endpoint,
-}
-
 func init() {
     http.HandleFunc("/", handleRoot)
     http.HandleFunc("/authorize", handleAuthorize)
@@ -82,6 +69,17 @@ func init() {
 
     http.HandleFunc("/login", handleConsoleLogin)
     http.HandleFunc("/follow", handleFollowUser)
+    http.HandleFunc("/me", handleMe)
+}
+
+func handleMe(w http.ResponseWriter, r *http.Request) {
+  ctx := appengine.NewContext(r)
+  u, err := newuser.CurrentOAuth(ctx, "")
+  if err != nil {
+          http.Error(w, "OAuth Authorization header required", http.StatusUnauthorized)
+          return
+  }
+  fmt.Fprintf(w, `%s`, u)
 }
 
 func handleGetPhotos(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +208,6 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
-    //c := appengine.NewContext(r)
     cookie := &http.Cookie{Name:"auth_initiate", Value:"frame", Expires:time.Now().Add(356*24*time.Hour)}
     http.SetCookie(w, cookie)
 
@@ -219,11 +216,10 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleConsoleLogin(w http.ResponseWriter, r *http.Request) {
-    //c := appengine.NewContext(r)
     cookie := &http.Cookie{Name:"auth_initiate", Value:"console", Expires:time.Now().Add(356*24*time.Hour)}
     http.SetCookie(w, cookie)
 
-    url := conf.AuthCodeURL("admin")
+    url := conf.AuthCodeURL("")
     http.Redirect(w, r, url, http.StatusFound)
 }
 
