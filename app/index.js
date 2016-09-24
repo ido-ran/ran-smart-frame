@@ -113,7 +113,7 @@ function showNextPhoto() {
 
   var timePicTaken = new Date(parseInt(mediaToShow[currMediaIndex].Timestamp));
   var pointInTime = new Date(2015, 1, 27, 0, 0, 0, 0);
-  var duration = moment.duration(timePicTaken - pointInTime);
+  var duration = moment.duration(pointInTime - timePicTaken);
 
   var durationString;
   if (duration.asYears() < 1.1) {
