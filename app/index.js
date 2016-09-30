@@ -112,16 +112,21 @@ function showNextPhoto() {
   imgElement.src = mediaToShow[currMediaIndex].URL;
 
   var timePicTaken = new Date(parseInt(mediaToShow[currMediaIndex].Timestamp));
-  var pointInTime = new Date(2015, 1, 27, 0, 0, 0, 0);
-  var duration = moment.duration(pointInTime - timePicTaken);
+  var pointInTime = new Date("Jan 1 2015 3:00");
+  var duration = moment.duration(timePicTaken - pointInTime);
 
-  var durationString;
-  if (duration.asYears() < 1.1) {
+  var durationString = '';
+  if (duration.asMonths() < 10) {
     durationString = duration.humanize();
   } else {
-    durationString = duration.years() + 'y ';
+    if (duration.years() > 0) {
+      durationString += duration.years() + 'y ';
+    }
     if (duration.months() > 0) {
-       durationString += duration.months() + 'm'
+       durationString += duration.months() + 'm ';
+    }
+    if (duration.days() > 0) {
+      durationString += duration.days() + 'd';
     }
   }
   ribbonElement.innerText = durationString;
