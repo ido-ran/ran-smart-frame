@@ -52,6 +52,23 @@ h2{
 
 /* The ribbons */
 
+.horizontal-ribbon{
+  width: 300px;
+  font-size: 40px;
+  position: absolute;
+  text-align: center;
+  line-height: 50px;
+  letter-spacing: 1px;
+}
+
+.horizontal-ribbon.top-right{
+  top: 25px;
+  right: 0px;
+  left: auto;
+}
+
+
+
 .corner-ribbon{
   width: 300px;
   font-size: 40px;
@@ -111,7 +128,7 @@ h2{
 .corner-ribbon.black{background: #333;}
 .corner-ribbon.grey{background: #999;}
 .corner-ribbon.blue{background: #39d;}
-.corner-ribbon.green{background: #2c7;}
+.green{background: #2c7;}
 .corner-ribbon.turquoise{background: #1b9;}
 .corner-ribbon.purple{background: #95b;}
 .corner-ribbon.red{background: #134;}

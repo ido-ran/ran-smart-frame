@@ -17,9 +17,13 @@ var mediaToShow;
 var currMediaIndex = -1;
 var imgElement;
 var ribbonElement;
+var holidayRibbonElement;
 var lastUpdateAt;
 var state = STATES.INIT;
 var errorCount = 0;
+
+// Map a date in format YYYY-MM-DD to a holiday name
+var holidaysMapByDate = {};
 
 var imgContainerElement;
 var loadingContainerElement;
@@ -29,6 +33,10 @@ window.onload = function() {
   imgElement = document.getElementById('mainimg');
   loadingContainerElement = document.getElementById('loadingcontainer');
   ribbonElement = document.getElementById('ribbon');
+  holidayRibbonElement = document.getElementById('holiday-ribbon');
+
+  holidayRibbonElement.style.display = 'none';
+
   loadMedia();
 }
 
@@ -85,6 +93,8 @@ function loadMedia() {
     dataSource = JSON.parse(this.response);
     mediaToShow = dataSource.Media.slice(); // make a copy
 
+    prepareAuxData();
+
     // TODO: we should not suffle if the dataSource is the same as the last one we got to ensure we show all the pictures before suffle again.
     shuffle(mediaToShow);
 
@@ -112,6 +122,17 @@ function showNextPhoto() {
   imgElement.src = mediaToShow[currMediaIndex].URL;
 
   var timePicTaken = new Date(parseInt(mediaToShow[currMediaIndex].Timestamp));
+  showPictureTimeInfo(timePicTaken);
+
+  setTimeout(showNextPhoto, CONSTS.SHOW_PHOTO_DURATION_IN_SECONDS * 1000);
+}
+
+function showPictureTimeInfo(timePicTaken) {
+  showBirthdateDuration(timePicTaken);
+  showHolidayInDate(timePicTaken);
+}
+
+function showBirthdateDuration(timePicTaken) {
   var pointInTime = new Date("Jan 27 2015 3:00");
   var duration = moment.duration(timePicTaken - pointInTime);
 
@@ -126,8 +147,19 @@ function showNextPhoto() {
     durationString += duration.days() + 'd';
   }
   ribbonElement.innerText = durationString;
+}
 
-  setTimeout(showNextPhoto, CONSTS.SHOW_PHOTO_DURATION_IN_SECONDS * 1000);
+function showHolidayInDate(timePicTaken) {
+  var isoDate = timePicTaken.toISOString();
+  var dateOfPic = isoDate.substr(0, isoDate.indexOf('T'));
+
+  var holiday = holidaysMapByDate[dateOfPic];
+  if (!holiday) {
+    holidayRibbonElement.style.display = 'none';
+  } else {
+    holidayRibbonElement.style.display = 'block';
+    holidayRibbonElement.innerText = holiday;
+  }
 }
 
 function checkMediaFreshness() {
@@ -141,6 +173,52 @@ function checkMediaFreshness() {
   }
 
   return false;
+}
+
+/**
+* Prepare data related to the photos like holidays information.
+*/
+function prepareAuxData() {
+  // Find the years photos are in
+  var yearsMap = {};
+  for(var i in mediaToShow) {
+      var yearPicTaken = new Date(parseInt(mediaToShow[i].Timestamp)).getFullYear();
+      yearsMap[yearPicTaken] = null;
+  }
+  var years = Object.keys(yearsMap);
+  years.forEach(function(year) {
+    loadHolidaysForYear(year);
+  });
+}
+
+function loadHolidaysForYear(year) {
+  var xhr = new XMLHttpRequest();
+  xhr.timeout = 8000;
+
+  var url = 'http://www.hebcal.com/hebcal/?v=1&cfg=json&maj=on&min=on&mod=on&nx=off&year=' + year + '&month=x&ss=off&mf=on&c=off&m=50&s=off';
+  xhr.open('GET', url);
+
+  xhr.ontimeout = function () {
+    setErrorState();
+  };
+
+  xhr.onerror = function() {
+    setErrorState();
+  }
+
+  xhr.onload = function(e) {
+    if (this.status !== 200) {
+      // Fail to load holidays, ignore
+      return;
+    };
+
+    var holidays = JSON.parse(this.response);
+    holidays.items.forEach(function(holiday) {
+      holidaysMapByDate[holiday.date] = holiday.hebrew;
+    });
+  };
+
+  xhr.send();
 }
 
 function shuffle(array) {
