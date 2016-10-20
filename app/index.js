@@ -195,7 +195,7 @@ function loadHolidaysForYear(year) {
   var xhr = new XMLHttpRequest();
   xhr.timeout = 8000;
 
-  var url = 'http://www.hebcal.com/hebcal/?v=1&cfg=json&maj=on&min=on&mod=on&nx=off&year=' + year + '&month=x&ss=off&mf=on&c=off&m=50&s=off';
+  var url = '//www.hebcal.com/hebcal/?v=1&cfg=json&maj=on&min=on&mod=on&nx=off&year=' + year + '&month=x&ss=off&mf=on&c=off&m=50&s=off';
   xhr.open('GET', url);
 
   xhr.ontimeout = function () {
